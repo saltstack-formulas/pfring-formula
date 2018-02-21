@@ -1,3 +1,6 @@
+# Default setting for base_dir
+{% set base_dir = salt['pillar.get']('pfring:lookup:pfring:base_dir', '/etc/pf_ring') %}
+
 # Set default pfring settings
 {% set default_config = salt.grains.filter_by({
   'default':
@@ -5,10 +8,10 @@
     'pfring':
     {
       'install_type': 'package',
-      'repo_baseurl': 'http://packages.ntop.org/centos-stable/',
-      'repo_gpgkey': 'http://packages.ntop.org/centos-stable/RPM-GPG-KEY-deri',
+      'base_dir': base_dir,
       'interfaces':
       {
+        'ip_binary_path': '/sbin/ip',
         'management': 'eth0',
         'capture': 
         {
@@ -36,6 +39,32 @@
     },
   },
 }, grain='host', base='default') %}
+
+# Get settings for os_family
+{% set os_lookup = {
+  'RedHat':
+  {
+    'package':
+    {
+      'skip_verify': '0',
+      'repo_baseurl': 'http://packages.ntop.org/centos-stable/',
+      'repo_gpgkey': 'http://packages.ntop.org/centos-stable/RPM-GPG-KEY-deri',
+    }
+  },
+  'Debian':
+  {
+    'package':
+    {
+      'skip_verify': '0',
+      'repo_baseurl': 'deb http://packages.ntop.org/apt-stable/stretch/',
+      'repo_gpgkey': 'http://packages.ntop.org/apt-stable/ntop.key',
+    }
+  }
+} %}
+{% set os_map = os_lookup.get(grains.os_family, {}) %}
+
+# update the default config with os specific settings
+{% do default_config.update(os_map) %}
 
 # Merge the default settings with pillar data
 {% set host_lookup = salt['pillar.get']('pfring:lookup', default=default_config, merge=True) %}
